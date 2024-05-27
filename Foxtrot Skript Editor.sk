@@ -1,0 +1,230 @@
+#FOXTROT EDITOR
+#All code by Com2486 (com2486 on discord)
+#Idea and Background Color by eggyfries (eggyfries on discord)
+#
+#Thank you for using!
+
+on load:
+	clear {foxtrotSettings::*} #This makes sure that your settings update properly
+	
+	#Directory that Foxtrot edits files in. Starts in the server folder (where the server jar is)
+	#Default "plugins/skript/scripts/"
+	set {foxtrotSettings::cwd} to "plugins/skript/scripts/"
+	
+	#File format that Foxtrot defaults to. If you want to edit all files, set this to ""
+	#Default ".sk"
+	set {foxtrotSettings::suffix} to ".sk"
+	
+	#Name for the Foxtrot Book
+	set {foxtrotSettings::editmodeName} to "<reset><lime>Foxtrot Edit Mode"
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------
+#Everything below this point is the actual code for Foxtrot and should not be edited unless you are 100% sure you know what you are doing.
+#You should know at least basic Skript before changing anything here. YOU HAVE BEEN WARNED SUFFICIENTLY!
+#-----------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+#Main Foxtrot Command
+command /foxtrot <string = "help"> [<string = "extra">]:
+	aliases: /f
+	permission: ops
+	permission message: <light red>Sorry! You don't have enough permission to use Foxtrot.
+	trigger:
+		#Help for newcomers
+		if arg-1 is "help":
+			send "Welcome to <lime>Foxtrot In-game Editor!<reset>"
+			send "Do <bold>/foxtrot create<reset> to make a window"
+			send "Do <bold>/foxtrot rotate<reset> to rotate your window"
+			send "Do <bold>/foxtrot update (file)<reset> to start editing files"
+			send "Do <bold>/foxtrot kill<reset> to kill all windows"
+			send "Do <bold>/foxtrot how<reset> for more info"
+			
+		#Create a foxtrot display
+		if arg-1 is "create":
+			#Spawn a text display
+			spawn a text display at the player
+			
+			#Get that text display's nbt compound
+			set {_nbt} to nbt compound from last spawned text display
+			
+			#Give it a background, align it, and add default text.
+			add nbt compound from "{background:-14077644, Rotation:[0f, 0f], alignment:left, line_width:9999999, text:'{""text"":""Foxtrot Editor""}'}" to {_nbt}
+			
+			#Use a skbee work-around so that it can be tagged as a Foxtrot display
+			set {_custom} to compound tag "custom" of {_nbt}
+			set int tag "foxtrot" of {_custom} to 1
+	
+			send "Made a new Foxtrot display."
+			
+		#Give players a Foxtrot book
+		if arg-1 is "book":
+			#Create a normal book with the name set in the settings
+			set {_book} to book and quill named {foxtrotSettings::editmodeName}
+			
+			#get the nbt compound of that book
+			set {_nbt} to nbt compound from {_book}
+			
+			#set it as a Foxtrot book, so Foxtrot can detect it
+			set int tag "foxtrotBook" of {_nbt} to 1
+			
+			#give that to the player.
+			give player {_book}
+			send "Here's a Foxtrot book!"
+			
+		#Start editing a file
+		if arg-1 is "update":
+			
+			set {_foxtrotformat} to "%{foxtrotSettings::cwd}%%arg-2%%{foxtrotSettings::suffix}%"
+			if file {_foxtrotformat} doesn't exist:
+				send "That file isn't real!"
+				stop
+			set {foxtrot::file} to {_foxtrotformat}
+			send "Now editing <bold><lime>%arg-2%%{foxtrotSettings::suffix}%<reset>!"
+				
+		
+		if arg-1 is "kill":
+			loop all text displays:
+				set {_nbt} to nbt compound from loop-entity
+				if int tag "custom;foxtrot" of {_nbt} is 1: 
+					kill loop-entity
+			clear {foxtrot::file}
+			clear {foxtrot::editmode::%player%}
+			
+			send "Killed all active Foxtrot displays."
+			send action bar "" to player
+			
+		if arg-1 is "how":
+			send "After you create a display with <bold><lime>/foxtrot create<reset>, and start editing a file with <bold><lime>/foxtrot update (file)<reset>", ""
+			send "You will then need a book <bold><lime>/foxtrot book<reset>, that when held, puts you into <lime>Edit Mode<reset>.", ""
+			send "<lime>Edit Mode<reset> allows you to edit any line of a file with the provided book-and-quill.", ""
+			send "But, you may notice that when you first enter <lime>Edit Mode<reset>, your book-and-quill doesn't show anything! How do you change the line?", ""
+			send "<bold>Simple! Just type the line number into chat while holding your book-and-quill!", ""
+			send "After you're done editing a line, hit 'Done' to commit your change to the file.", ""
+			send "Watch out! <bold>You can re-edit a file, but you cannot undo a change!<reset>", ""
+			send "If you have any more questions, they should be answered by <bold><lime>/foxtrot faq"
+			
+		if arg-1 is "faq":
+			send "Q: Why doesn't changing my book do anything?"
+			send "A: Type a line number in chat while you're in edit mode!", ""
+			
+			send "Q: My book doesn't instantly update"
+			send "A: Your book only updates as fast as the screen does.", ""
+			
+			send "Q: How do I add tabs if Minecraft Books don't allow it?"
+			send "A: Although you can't add tabs with the TAB key, you can type <bold>(tab)<reset>, and Foxtrot will replace it.", ""
+			
+			send "Q: Will Foxtrot ever be on Github, or allow recommendated changes?"
+			send "A: Oh, I bet. Not for a while, though.", ""
+			
+			send "Q: Foxtrot Discord Server?"
+			send "A: No. Nope. Can't manage one. If you like Foxtrot and want to contact for bugs or recommendations, send me, com2486, a message in DMs!", ""
+		
+		if arg-1 is "rotate":
+			loop all text displays:
+				set {_nbt} to nbt compound from loop-entity
+				set {_list::*} to float list tag "Rotation" of {_nbt}
+				set {_list::1} to {_list::1} + 90
+
+				add nbt compound from "{Rotation:[%{_list::1}%f, 0.0f]}" to {_nbt}
+				
+				
+				
+			
+		
+		
+every 10 ticks:
+	stop if {foxtrot::file} isn't set
+	updateBooks()
+	set {_file} to {foxtrot::file}
+	set {_lncount} to line count of file {_file}
+	set {_fullfilestring} to ""
+	loop {_lncount} times:
+		set {_line} to line loop-value in file {_file}
+		set {_fullfilestring} to raw "%{_fullfilestring}% %nl% %loop-value%: %{_line}%"
+
+	set {_tab} to convert ascii 9 to string
+	set {_quote} to convert ascii 34 to string
+	set {_apost} to convert ascii 39 to string
+
+	#replace all "	" with "" in {_fullfilestring}
+	replace all "%nl%" with "\\n" in {_fullfilestring}
+
+	replace all "%{_tab}%" with "    " in {_fullfilestring}
+	replace all "%{_quote}%" with "\\%{_quote}%" in {_fullfilestring}
+	replace all "%{_apost}%" with "\%{_apost}%" in {_fullfilestring}
+	loop all text displays:
+		set {_nbt} to nbt compound from loop-entity
+		if int tag "custom;foxtrot" of {_nbt} is 1: 
+			add nbt compound from "{background:-14077644, alignment:left, line_width:9999999, text:'{""text"":""%{_fullfilestring}%""}'}" to {_nbt}
+		
+		
+every 5 ticks:
+	loop all players:
+		if int tag "foxtrotBook" of nbt compound from loop-player's tool is 1:
+			set {foxtrot::editmode::%loop-player%} to true
+		
+		else:
+			if {foxtrot::editmode::%loop-player%} is set:
+				clear {foxtrot::editmode::%loop-player%}
+				send action bar "" to loop-player
+			
+			
+		
+		send action bar "<lime>EDIT MODE" to loop-player if {foxtrot::editmode::%loop-player%} is set
+
+function updateBooks():
+	loop all players:
+		if {foxtrot::editmode::%loop-player%} is set:
+			stop if {foxtrot::line::%loop-player%} isn't set
+			
+			set {_line} to line {foxtrot::line::%loop-player%} in file {foxtrot::file}
+			replace all "	" with "(tab)" in {_line}
+			set page 1 of loop-player's tool to uncolored "%{_line}%"			
+
+on chat:
+	if {foxtrot::editmode::%player%} is set:
+		cancel event
+		if message isn't "+" or "-":
+			set {_} to message parsed as number
+			stop if {_} isn't set
+		
+		else:
+			set {_} to {foxtrot::line::%player%} + 1 if message is "+"
+			set {_} to {foxtrot::line::%player%} - 1 if message is "-"
+		
+		set {foxtrot::line::%player%} to {_}
+		updateBooks()
+		send "Now editing line %{_}%"
+		
+
+		
+on book edit:
+	if int tag "foxtrotBook" of nbt compound from player's tool is 1:
+		if {foxtrot::editmode::%player%} is set:
+			cancel event
+			set {_} to page 1 of event-item
+			if {_} isn't set:
+				set {_} to ""
+			
+			replace all "(tab)" with "	" in {_}
+			set {_lncnt} to line count of file "%{foxtrot::file}%"
+			
+			if {foxtrot::line::%player%} <= {_lncnt}:
+				#This is the scary part. Actually editing a file.
+				set line {foxtrot::line::%player%} in file "%{foxtrot::file}%" to {_}
+			
+			else:
+				write {_} at line {foxtrot::line::%player%} to file "%{foxtrot::file}%"
+			
+			if {_} is "***":
+				cleanFiles()
+			
+function cleanFiles():
+	set {_a::*} to file contents of "%{foxtrot::file}%"
+	loop {_a::*}:
+		if loop-value is "***":
+			remove loop-value from {_a::*}
+	set file contents of "%{foxtrot::file}%" to {_a::*}
+		
