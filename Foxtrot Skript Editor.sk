@@ -116,7 +116,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "A: Although you can't add tabs with the TAB key, you can type <bold>(tab)<reset>, and Foxtrot will replace it.", ""
 			
 			send "Q: Will Foxtrot ever be on Github, or allow recommendated changes?"
-			send "A: Oh, I bet. Not for a while, though.", ""
+			send "A: "https://github.com/Com2486/Foxtrot-Code-Editor/", ""
 			
 			send "Q: Foxtrot Discord Server?"
 			send "A: No. Nope. Can't manage one. If you like Foxtrot and want to contact for bugs or recommendations, send me, com2486, a message in DMs!", ""
@@ -178,6 +178,13 @@ every 5 ticks:
 			
 		
 		send action bar "<lime>EDIT MODE" to loop-player if {foxtrot::editmode::%loop-player%} is set
+
+function hexToNonsense(hex: string) :: string:
+	set {_dec} to convert hex {_hex} to number
+	if {_dec} >= 2147483648:
+		subtract 4294967296 from {_dec}
+
+	return {_dec}
 
 function updateBooks():
 	loop all players:
