@@ -75,8 +75,8 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			
 		#Start editing a file
 		if arg-1 is "update":
-			
 			set {_foxtrotformat} to "%{foxtrotSettings::cwd}%%arg-2%%{foxtrotSettings::suffix}%"
+			replace all ".." with "" in {_foxtrotformat}
 			if file {_foxtrotformat} doesn't exist:
 				send "That file isn't real!"
 				stop
