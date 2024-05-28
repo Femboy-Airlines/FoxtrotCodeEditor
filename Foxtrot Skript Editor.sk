@@ -13,7 +13,7 @@ on load:
 	
 	#File format that Foxtrot defaults to. If you want to edit all files, set this to ""
 	#Default ".sk"
-	set {foxtrotSettings::suffix} to ".sk"
+	set {foxtrotSettings::suffix} to ""
 	
 	#Name for the Foxtrot Book
 	set {foxtrotSettings::editmodeName} to "<reset><lime>Foxtrot Edit Mode"
@@ -147,8 +147,13 @@ every 10 ticks:
 	set {_tab} to convert ascii 9 to string
 	set {_quote} to convert ascii 34 to string
 	set {_apost} to convert ascii 39 to string
+	set {_backslash} to convert ascii 92 to string
+	set {_dbs} to "%{_backslash}%%{_backslash}%%{_backslash}%%{_backslash}%"
+	
+
 
 	#replace all "	" with "" in {_fullfilestring}
+	replace all {_backslash} with {_dbs} in {_fullfilestring}
 	replace all "%nl%" with "\\n" in {_fullfilestring}
 
 	replace all "%{_tab}%" with "    " in {_fullfilestring}
@@ -181,7 +186,7 @@ function updateBooks():
 			
 			set {_line} to line {foxtrot::line::%loop-player%} in file {foxtrot::file}
 			replace all "	" with "(tab)" in {_line}
-			set page 1 of loop-player's tool to uncolored "%{_line}%"			
+			set page 1 of loop-player's tool to unformatted "%{_line}%"			
 
 on chat:
 	if {foxtrot::editmode::%player%} is set:
