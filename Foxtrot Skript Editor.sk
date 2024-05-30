@@ -119,7 +119,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "A: https://github.com/Com2486/Foxtrot-Code-Editor/", ""
 			
 			send "Q: Foxtrot Discord Server?"
-			send "A: No. Nope. Can't manage one. If you like Foxtrot and want to contact for bugs or recommendations, send me, com2486, a message in DMs!", ""
+			send "A: Foxtrot won't have it's own server, but Foxtrot is being managed by Femboy Airlines team! Check out femboyairlines.com for a Discord server.", ""
 		
 		if arg-1 is "rotate":
 			loop all text displays:
