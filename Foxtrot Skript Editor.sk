@@ -75,7 +75,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 				set {_hex} to arg-2
 				
 				#Remove hashtags and '0x', common things in copy-pasted hex colors
-				replace all "#" with "" in {_hex}
+				replace all "##" with "" in {_hex}
 				replace all "0x" with "" in {_hex}
 				
 				#Stop if it's not a valid hex code length
@@ -91,7 +91,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 					#If it isn't ARGB or RGB, then get confused.
 					else:
 						send "Input a valid hex code!"
-						send "(Please omit 0x and #)"
+						send "(Please omit 0x and ##)"
 						stop
 				#If this is an ARGB hex code, then it's easy because this function I made was designed for that!
 				else:
