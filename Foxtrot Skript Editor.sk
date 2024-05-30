@@ -116,7 +116,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "A: Although you can't add tabs with the TAB key, you can type <bold>(tab)<reset>, and Foxtrot will replace it.", ""
 			
 			send "Q: Will Foxtrot ever be on Github, or allow recommendated changes?"
-			send "A: "https://github.com/Com2486/Foxtrot-Code-Editor/", ""
+			send "A: https://github.com/Com2486/Foxtrot-Code-Editor/", ""
 			
 			send "Q: Foxtrot Discord Server?"
 			send "A: No. Nope. Can't manage one. If you like Foxtrot and want to contact for bugs or recommendations, send me, com2486, a message in DMs!", ""
