@@ -79,7 +79,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 				replace all "0x" with "" in {_hex}
 				
 				#Stop if it's not a valid hex code length
-				stop if's {_hex}'s length isn't 8 or 6
+				stop if {_hex}'s length isn't 8 or 6
 				
 				#This checks if it is or isn't an ARGB hex code
 				if {_hex}'s length isn't 8:
