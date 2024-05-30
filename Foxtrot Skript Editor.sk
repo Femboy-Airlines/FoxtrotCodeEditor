@@ -1,22 +1,22 @@
-#FOXTROT EDITOR
+#FOXTROT SKRIPT EDITOR
 #All code by Com2486 (com2486 on discord)
 #Idea, Background Color, and Testing by eggyfries (eggyfries on discord)
 #
 #Thank you for using!
 
 on load:
-	clear {foxtrotSettings::*} #This makes sure that your settings update properly
+	clear {foxtrotSettings::global::*} #This makes sure that your settings update properly
 	
 	#Directory that Foxtrot edits files in. Starts in the server folder (where the server jar is)
 	#Default "plugins/skript/scripts/"
-	set {foxtrotSettings::cwd} to "plugins/skript/scripts/"
+	set {foxtrotSettings::global::cwd} to "plugins/skript/scripts/"
 	
 	#File format that Foxtrot defaults to. If you want to edit all files, set this to ""
 	#Default ".sk"
-	set {foxtrotSettings::suffix} to ".sk"
+	set {foxtrotSettings::global::suffix} to ".sk"
 	
 	#Name for the Foxtrot Book
-	set {foxtrotSettings::editmodeName} to "<reset><lime>Foxtrot Edit Mode"
+	set {foxtrotSettings::global::editmodeName} to "<reset><lime>Foxtrot Edit Mode"
 
 
 #-----------------------------------------------------------------------------------------------------------------------------------------
@@ -37,10 +37,12 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "Welcome to <lime>Foxtrot In-game Editor!<reset>"
 			send "Do <bold>/foxtrot create<reset> to make a window"
 			send "Do <bold>/foxtrot rotate<reset> to rotate your window"
+			send "Do <bold>/foxtrot color (ARGB hex code)<reset> to customise your window"
 			send "Do <bold>/foxtrot update (file)<reset> to start editing files"
 			send "Do <bold>/foxtrot kill<reset> to kill all windows"
 			send "Do <bold>/foxtrot how<reset> for more info"
 			
+
 		#Create a foxtrot display
 		if arg-1 is "create":
 			#Spawn a text display
@@ -49,19 +51,37 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			#Get that text display's nbt compound
 			set {_nbt} to nbt compound from last spawned text display
 			
+			set {foxtrot::color::%player%} to -14077644 if {foxtrot::color::%player%} isn't set
+			
 			#Give it a background, align it, and add default text.
-			add nbt compound from "{background:-14077644, Rotation:[0f, 0f], alignment:left, line_width:9999999, text:'{""text"":""Foxtrot Editor""}'}" to {_nbt}
+			add nbt compound from "{background:%{foxtrot::color::%player%}%, Rotation:[0f, 0f], alignment:left, line_width:9999999, text:'{""text"":""Foxtrot Editor""}'}" to {_nbt}
 			
 			#Use a skbee work-around so that it can be tagged as a Foxtrot display
 			set {_custom} to compound tag "custom" of {_nbt}
 			set int tag "foxtrot" of {_custom} to 1
+			set string tag "foxtrotOwner" of {_custom} to player's uuid
 	
 			send "Made a new Foxtrot display."
+			
+		#Edit background color
+		if arg-1 is "color":
+			if arg-2 is "extra":
+				set {foxtrot::color::%player%} to -14077644
+				send "Reset Foxtrot's color."
+			
+			else:
+				if arg-2's length isn't 8:
+					send "You need to send an ARGB Hex Code!"
+					send "(If you don't know what that means,"
+					send "use a hex code and add 'FF' to the start!)"
+				else:
+					set {foxtrot::color::%player%} to hextosigned(arg-2)
+					send "Set your Foxtrot color!"
 			
 		#Give players a Foxtrot book
 		if arg-1 is "book":
 			#Create a normal book with the name set in the settings
-			set {_book} to book and quill named {foxtrotSettings::editmodeName}
+			set {_book} to book and quill named {foxtrotSettings::global::editmodeName}
 			
 			#get the nbt compound of that book
 			set {_nbt} to nbt compound from {_book}
@@ -75,24 +95,26 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			
 		#Start editing a file
 		if arg-1 is "update":
-			set {_foxtrotformat} to "%{foxtrotSettings::cwd}%%arg-2%%{foxtrotSettings::suffix}%"
+			set {_foxtrotformat} to "%{foxtrotSettings::global::cwd}%%arg-2%%{foxtrotSettings::global::suffix}%"
 			replace all ".." with "" in {_foxtrotformat}
 			if file {_foxtrotformat} doesn't exist:
 				send "That file isn't real!"
 				stop
-			set {foxtrot::file} to {_foxtrotformat}
-			send "Now editing <bold><lime>%arg-2%%{foxtrotSettings::suffix}%<reset>!"
+			set {foxtrot::file::%player%} to {_foxtrotformat}
+			send "Now editing <bold><lime>%arg-2%%{foxtrotSettings::global::suffix}%<reset>!"
 				
 		
 		if arg-1 is "kill":
 			loop all text displays:
 				set {_nbt} to nbt compound from loop-entity
 				if int tag "custom;foxtrot" of {_nbt} is 1: 
-					kill loop-entity
-			clear {foxtrot::file}
+					if string tag "custom;foxtrotOwner" of {_nbt} is player's uuid:
+						kill loop-entity
+						
+			clear {foxtrot::file::%player%}
 			clear {foxtrot::editmode::%player%}
 			
-			send "Killed all active Foxtrot displays."
+			send "Killed all of your active Foxtrot displays."
 			send action bar "" to player
 			
 		if arg-1 is "how":
@@ -122,12 +144,15 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "A: Foxtrot won't have it's own server, but Foxtrot is being managed by Femboy Airlines team! Check out femboyairlines.com for a Discord server.", ""
 		
 		if arg-1 is "rotate":
-			loop all text displays:
-				set {_nbt} to nbt compound from loop-entity
-				set {_list::*} to float list tag "Rotation" of {_nbt}
-				set {_list::1} to {_list::1} + 90
+			set {_nbt} to nbt compound from nearest text display
+			stop if int tag "custom;foxtrot" of {_nbt} isn't set
+			stop if string tag "custom;foxtrotOwner" of {_nbt} isn't player's uuid
+			
+			
+			set {_list::*} to float list tag "Rotation" of {_nbt}
+			set {_list::1} to {_list::1} + 90
 
-				add nbt compound from "{Rotation:[%{_list::1}%f, 0.0f]}" to {_nbt}
+			add nbt compound from "{Rotation:[%{_list::1}%f, 0.0f]}" to {_nbt}
 				
 				
 				
@@ -135,35 +160,38 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 		
 		
 every 10 ticks:
-	stop if {foxtrot::file} isn't set
 	updateBooks()
-	set {_file} to {foxtrot::file}
-	set {_lncount} to line count of file {_file}
-	set {_fullfilestring} to ""
-	loop {_lncount} times:
-		set {_line} to line loop-value in file {_file}
-		set {_fullfilestring} to raw "%{_fullfilestring}% %nl% %loop-value%: %{_line}%"
-
-	set {_tab} to convert ascii 9 to string
-	set {_quote} to convert ascii 34 to string
-	set {_apost} to convert ascii 39 to string
-	set {_backslash} to convert ascii 92 to string
-	set {_dbs} to "%{_backslash}%%{_backslash}%%{_backslash}%%{_backslash}%"
-	
-
-
-	#replace all "	" with "" in {_fullfilestring}
-	replace all {_backslash} with {_dbs} in {_fullfilestring}
-	replace all "%nl%" with "\\n" in {_fullfilestring}
-
-	replace all "%{_tab}%" with "    " in {_fullfilestring}
-	replace all "%{_quote}%" with "\\%{_quote}%" in {_fullfilestring}
-	replace all "%{_apost}%" with "\%{_apost}%" in {_fullfilestring}
-	loop all text displays:
-		set {_nbt} to nbt compound from loop-entity
-		if int tag "custom;foxtrot" of {_nbt} is 1: 
-			add nbt compound from "{background:-14077644, alignment:left, line_width:9999999, text:'{""text"":""%{_fullfilestring}%""}'}" to {_nbt}
+	loop all players:
+		continue if {foxtrot::file::%loop-player%} isn't set
 		
+		set {_file} to {foxtrot::file::%loop-player%}
+		set {_lncount} to line count of file {_file}
+		set {_fullfilestring} to ""
+		loop {_lncount} times:
+			set {_line} to line loop-value-2 in file {_file}
+			set {_fullfilestring} to raw "%{_fullfilestring}% %nl% %loop-value-2%: %{_line}%"
+
+		set {_tab} to convert ascii 9 to string
+		set {_quote} to convert ascii 34 to string
+		set {_apost} to convert ascii 39 to string
+		set {_backslash} to convert ascii 92 to string
+		set {_dbs} to "%{_backslash}%%{_backslash}%%{_backslash}%%{_backslash}%"
+		
+
+
+		#replace all "	" with "" in {_fullfilestring}
+		replace all {_backslash} with {_dbs} in {_fullfilestring}
+		replace all "%nl%" with "\\n" in {_fullfilestring}
+
+		replace all "%{_tab}%" with "    " in {_fullfilestring}
+		replace all "%{_quote}%" with "\\%{_quote}%" in {_fullfilestring}
+		replace all "%{_apost}%" with "\%{_apost}%" in {_fullfilestring}
+		loop all text displays:
+			set {_nbt} to nbt compound from loop-entity-2
+			if int tag "custom;foxtrot" of {_nbt} is 1: 
+				if string tag "custom;foxtrotOwner" of {_nbt} is loop-player's uuid: 
+					add nbt compound from "{background:%{foxtrot::color::%loop-player%}%, alignment:left, line_width:9999999, text:'{""text"":""%{_fullfilestring}%""}'}" to {_nbt}
+			
 		
 every 5 ticks:
 	loop all players:
@@ -179,19 +207,37 @@ every 5 ticks:
 		
 		send action bar "<lime>EDIT MODE" to loop-player if {foxtrot::editmode::%loop-player%} is set
 
-function hexToNonsense(hex: string) :: string:
-	set {_dec} to convert hex {_hex} to number
-	if {_dec} >= 2147483648:
-		subtract 4294967296 from {_dec}
+function hextosigned(hex: string) :: number:
+	loop length of {_hex} times:
+		add character at index loop-value in {_hex} to {_n::*}
 
-	return {_dec}
+	#{_n::*}  
+
+	set {_final} to 0
+	set {_multiplier} to 1
+	set {_n::*} to reversed {_n::*}
+	loop {_n::*}:
+		
+		set {_convert1} to convert hexa loop-value to number
+		set {_convert1} to {_convert1} * {_multiplier}
+		add {_convert1} to {_final}
+
+		set {_multiplier} to {_multiplier} * 16
+		
+
+	if {_final} >= 2147483648:
+		subtract 4294967296 from {_final}
+
+
+	return {_final}
 
 function updateBooks():
 	loop all players:
 		if {foxtrot::editmode::%loop-player%} is set:
-			stop if {foxtrot::line::%loop-player%} isn't set
+			continue if {foxtrot::line::%loop-player%} isn't set
+			continue if {foxtrot::file::%loop-player%} isn't set
 			
-			set {_line} to line {foxtrot::line::%loop-player%} in file {foxtrot::file}
+			set {_line} to line {foxtrot::line::%loop-player%} in file {foxtrot::file::%loop-player%}
 			replace all "	" with "(tab)" in {_line}
 			set page 1 of loop-player's tool to unformatted "%{_line}%"			
 
@@ -221,22 +267,23 @@ on book edit:
 				set {_} to ""
 			
 			replace all "(tab)" with "	" in {_}
-			set {_lncnt} to line count of file "%{foxtrot::file}%"
+			set {_lncnt} to line count of file "%{foxtrot::file::%player%}%"
 			
 			if {foxtrot::line::%player%} <= {_lncnt}:
 				#This is the scary part. Actually editing a file.
-				set line {foxtrot::line::%player%} in file "%{foxtrot::file}%" to {_}
+				set line {foxtrot::line::%player%} in file "%{foxtrot::file::%player%}%" to {_}
 			
 			else:
-				write {_} at line {foxtrot::line::%player%} to file "%{foxtrot::file}%"
+				write {_} at line {foxtrot::line::%player%} to file "%{foxtrot::file::%player%}%"
 			
 			if {_} is "***":
-				cleanFiles()
+				cleanFiles(player)
 			
-function cleanFiles():
-	set {_a::*} to file contents of "%{foxtrot::file}%"
+function cleanFiles(pl: player):
+	set {_a::*} to file contents of {foxtrot::file::%{_pl}%}
 	loop {_a::*}:
 		if loop-value is "***":
 			remove loop-value from {_a::*}
-	set file contents of "%{foxtrot::file}%" to {_a::*}
+			
+	set file contents of {foxtrot::file::%{_pl}%} to {_a::*}
 		
