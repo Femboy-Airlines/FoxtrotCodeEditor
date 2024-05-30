@@ -28,9 +28,9 @@ on load:
 
 #Main Foxtrot Command
 command /foxtrot <string = "help"> [<string = "extra">]:
-	aliases: /f
-	permission: ops
-	permission message: <light red>Sorry! You don't have enough permission to use Foxtrot.
+	aliases: /f #Allows /f for Foxtrot
+	permission: ops #Only ops, you can change this if you want a custom permission like foxtrot.usage
+	permission message: <light red>Sorry! You don't have enough permission to use Foxtrot. #Message if you do not meet the above permissions
 	trigger:
 		#Help for newcomers
 		if arg-1 is "help":
@@ -51,12 +51,13 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			#Get that text display's nbt compound
 			set {_nbt} to nbt compound from last spawned text display
 			
+			#Set the color to Discord Grey if it isn't set (This prevents a lot of issues)
 			set {foxtrot::color::%player%} to -14077644 if {foxtrot::color::%player%} isn't set
 			
 			#Give it a background, align it, and add default text.
 			add nbt compound from "{background:%{foxtrot::color::%player%}%, Rotation:[0f, 0f], alignment:left, line_width:9999999, text:'{""text"":""Foxtrot Editor""}'}" to {_nbt}
 			
-			#Use a skbee work-around so that it can be tagged as a Foxtrot display
+			#Use a skbee work-around so that it can be tagged as a Foxtrot display. This also tags the display's owner.
 			set {_custom} to compound tag "custom" of {_nbt}
 			set int tag "foxtrot" of {_custom} to 1
 			set string tag "foxtrotOwner" of {_custom} to player's uuid
@@ -65,18 +66,38 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			
 		#Edit background color
 		if arg-1 is "color":
-			if arg-2 is "extra":
-				set {foxtrot::color::%player%} to -14077644
+			if arg-2 is "extra": #If someone didn't type anything after /foxtrot color
+				#Reset it back to default color.
+				set {foxtrot::color::%player%} to -14077644 
 				send "Reset Foxtrot's color."
 			
 			else:
-				if arg-2's length isn't 8:
-					send "You need to send an ARGB Hex Code!"
-					send "(If you don't know what that means,"
-					send "use a hex code and add 'FF' to the start!)"
+				set {_hex} to arg-2
+				
+				#Remove hashtags and '0x', common things in copy-pasted hex colors
+				replace all "#" with "" in {_hex}
+				replace all "0x" with "" in {_hex}
+				
+				#Stop if it's not a valid hex code length
+				stop if's {_hex}'s length isn't 8 or 6
+				
+				#This checks if it is or isn't an ARGB hex code
+				if {_hex}'s length isn't 8:
+					#If it's a Non-ARGB hex code
+					if {_hex}'s length is 6:
+						#Assume the user wants fully opaque color
+						set {foxtrot::color::%player%} to hextosigned("FF%{_hex}%")
+						
+					#If it isn't ARGB or RGB, then get confused.
+					else:
+						send "Input a valid hex code!"
+						send "(Please omit 0x and #)"
+						stop
+				#If this is an ARGB hex code, then it's easy because this function I made was designed for that!
 				else:
-					set {foxtrot::color::%player%} to hextosigned(arg-2)
-					send "Set your Foxtrot color!"
+					set {foxtrot::color::%player%} to hextosigned({_hex})
+				
+				send "Set your Foxtrot color!"
 			
 		#Give players a Foxtrot book
 		if arg-1 is "book":
@@ -95,28 +116,44 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			
 		#Start editing a file
 		if arg-1 is "update":
+			#The foxtrot format is: CWD (current working directory), File (player's file pick), Suffix (file format)
 			set {_foxtrotformat} to "%{foxtrotSettings::global::cwd}%%arg-2%%{foxtrotSettings::global::suffix}%"
+			
+			#Prevent people escaping the confines of the CWD
+			#Before this fix, people could do '../' to go back a directory, or
+			# 'C:/[...]' to explore drives. Very bad!
 			replace all ".." with "" in {_foxtrotformat}
+			replace all ":" with "" in {_foxtrotformat}
+			
+			#If the file doesn't exist, stop running
 			if file {_foxtrotformat} doesn't exist:
 				send "That file isn't real!"
 				stop
+				
+			#If it does exist, set the player's file to it
 			set {foxtrot::file::%player%} to {_foxtrotformat}
 			send "Now editing <bold><lime>%arg-2%%{foxtrotSettings::global::suffix}%<reset>!"
 				
 		
 		if arg-1 is "kill":
+			#Loop all text displays
 			loop all text displays:
+				#get the NBT data of the text display
 				set {_nbt} to nbt compound from loop-entity
+				#If the NBT data says that it's a Foxtrot display
 				if int tag "custom;foxtrot" of {_nbt} is 1: 
+					#If the NBT data says that it's *The Player's* Foxtrot display
 					if string tag "custom;foxtrotOwner" of {_nbt} is player's uuid:
+						#remove it
 						kill loop-entity
-						
+					
+			#Reset the 'file' to nothing in case of a broken book.
 			clear {foxtrot::file::%player%}
-			clear {foxtrot::editmode::%player%}
 			
 			send "Killed all of your active Foxtrot displays."
 			send action bar "" to player
 			
+		#More explanation
 		if arg-1 is "how":
 			send "After you create a display with <bold><lime>/foxtrot create<reset>, and start editing a file with <bold><lime>/foxtrot update (file)<reset>", ""
 			send "You will then need a book <bold><lime>/foxtrot book<reset>, that when held, puts you into <lime>Edit Mode<reset>.", ""
@@ -127,6 +164,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "Watch out! <bold>You can re-edit a file, but you cannot undo a change!<reset>", ""
 			send "If you have any more questions, they should be answered by <bold><lime>/foxtrot faq"
 			
+		#*MORE* explanation
 		if arg-1 is "faq":
 			send "Q: Why doesn't changing my book do anything?"
 			send "A: Type a line number in chat while you're in edit mode!", ""
@@ -143,34 +181,53 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "Q: Foxtrot Discord Server?"
 			send "A: Foxtrot won't have it's own server, but Foxtrot is being managed by Femboy Airlines team! Check out femboyairlines.com for a Discord server.", ""
 		
+		#Rotate display.
+		#Ideally, this command should be entirely removed. I'd love a system that always points towards the player.
 		if arg-1 is "rotate":
+			#Get the NBT data of the nearest text display
 			set {_nbt} to nbt compound from nearest text display
+			
+			#Stop if it isn't a foxtrot display, and stop if it isn't the player's foxtrot display.
 			stop if int tag "custom;foxtrot" of {_nbt} isn't set
 			stop if string tag "custom;foxtrotOwner" of {_nbt} isn't player's uuid
 			
-			
+			#Change the rotation manually by literally changing the raw rotation by 90.
+			#Icky musty code. Replace soon plz!
 			set {_list::*} to float list tag "Rotation" of {_nbt}
 			set {_list::1} to {_list::1} + 90
-
-			add nbt compound from "{Rotation:[%{_list::1}%f, 0.0f]}" to {_nbt}
-				
-				
-				
 			
+			#Apply change to the NBT
+			add nbt compound from "{Rotation:[%{_list::1}%f, 0.0f]}" to {_nbt}	
 		
-		
+#Main update loop
 every 10 ticks:
+	
+	#Update all edit mode books
 	updateBooks()
+	
+	#Loop every player
 	loop all players:
+	
+		#Completely ignore this player if they aren't editing a file
 		continue if {foxtrot::file::%loop-player%} isn't set
 		
+		#Shorten {foxtrot::file::%loop-player%} to {_file}
 		set {_file} to {foxtrot::file::%loop-player%}
+		
+		#Get the line count of the Foxtrot file
 		set {_lncount} to line count of file {_file}
+		
+		#Initialize an empty string 
 		set {_fullfilestring} to ""
+		
+		#Loop for every line in the file
 		loop {_lncount} times:
+			#Get the line at that index
 			set {_line} to line loop-value-2 in file {_file}
+			#Add that to the aformentioned string.
 			set {_fullfilestring} to raw "%{_fullfilestring}% %nl% %loop-value-2%: %{_line}%"
-
+		
+		#Initialize a bunch of characters
 		set {_tab} to convert ascii 9 to string
 		set {_quote} to convert ascii 34 to string
 		set {_apost} to convert ascii 39 to string
@@ -179,111 +236,193 @@ every 10 ticks:
 		
 
 
-		#replace all "	" with "" in {_fullfilestring}
+		#Make sure that the screens and books won't break Backslashes
 		replace all {_backslash} with {_dbs} in {_fullfilestring}
+		
+		#Replace all actual new lines with "\n" for the screens
 		replace all "%nl%" with "\\n" in {_fullfilestring}
 
+		#Replace all tabs with spaces. Sucks, but Minecraft's problem, not mine.
 		replace all "%{_tab}%" with "    " in {_fullfilestring}
+		
+		#Replace quotes and apostrophes with escaped versions.
 		replace all "%{_quote}%" with "\\%{_quote}%" in {_fullfilestring}
 		replace all "%{_apost}%" with "\%{_apost}%" in {_fullfilestring}
+		
+		#Loop all the text displays
 		loop all text displays:
+			#Get the NBT data of the looped display
 			set {_nbt} to nbt compound from loop-entity-2
+			
+			#If it's a foxtrot display
 			if int tag "custom;foxtrot" of {_nbt} is 1: 
+				#If it's the player's foxtrot display
 				if string tag "custom;foxtrotOwner" of {_nbt} is loop-player's uuid: 
+					#Apply all the changes to background and text
 					add nbt compound from "{background:%{foxtrot::color::%loop-player%}%, alignment:left, line_width:9999999, text:'{""text"":""%{_fullfilestring}%""}'}" to {_nbt}
 			
-		
+#Edit mode application 
 every 5 ticks:
+	#Loop every player
 	loop all players:
+	
+		#If the player's held item is a Foxtrot Edit Mode Book
 		if int tag "foxtrotBook" of nbt compound from loop-player's tool is 1:
+			#Turn on edit mode
 			set {foxtrot::editmode::%loop-player%} to true
 		
+		#If it's not a Foxtrot book
 		else:
+			#and Edit Mode is on
 			if {foxtrot::editmode::%loop-player%} is set:
+				#turn it off.
 				clear {foxtrot::editmode::%loop-player%}
 				send action bar "" to loop-player
-			
-			
 		
+		#Send the action bar based on if the player is, or isn't, in Edit Mode
 		send action bar "<lime>EDIT MODE" to loop-player if {foxtrot::editmode::%loop-player%} is set
 
+#This function is why it took so long to get colors working
+#Converts ARGB Hex codes to Decimal from signed 2's complement
 function hextosigned(hex: string) :: number:
+
+	#Turn a string into a list of characters
+	#Loop all characters in {_hex}
 	loop length of {_hex} times:
+		#add it to a list
 		add character at index loop-value in {_hex} to {_n::*}
 
-	#{_n::*}  
-
+	#Initialize two variables
 	set {_final} to 0
 	set {_multiplier} to 1
+	
+	#Reverse {_n::*}'s order
 	set {_n::*} to reversed {_n::*}
+	
+	#Loop every character in {_n::*}
 	loop {_n::*}:
-		
+		#Convert it to a number (int)
 		set {_convert1} to convert hexa loop-value to number
+		
+		#Multiply it by the multiplier. (What else would you do with a multiplier?)
 		set {_convert1} to {_convert1} * {_multiplier}
+		
+		#Add this number to the final value
 		add {_convert1} to {_final}
 
+		#Increase the multiplier
 		set {_multiplier} to {_multiplier} * 16
 		
-
+	#If this final number is over the Integer limit
 	if {_final} >= 2147483648:
+		#wrap it around
 		subtract 4294967296 from {_final}
 
-
+	#Return the final number
 	return {_final}
 
+
+#Update all Edit Mode books
 function updateBooks():
+	#Loop every player
 	loop all players:
+		
+		#If the looped player is in Edit Mode
 		if {foxtrot::editmode::%loop-player%} is set:
+		
+			#Ignore this player if they haven't started editing a line
 			continue if {foxtrot::line::%loop-player%} isn't set
+			
+			#Ignore this player if they're holding a book, but haven't started editing any files
 			continue if {foxtrot::file::%loop-player%} isn't set
 			
+			#Get the line from the file
 			set {_line} to line {foxtrot::line::%loop-player%} in file {foxtrot::file::%loop-player%}
+			
+			#Replace tabs with (tab) because Minecraft formatting is weird
 			replace all "	" with "(tab)" in {_line}
+			
+			#Update page 1 of the book with that line
 			set page 1 of loop-player's tool to unformatted "%{_line}%"			
 
+#Chat handler
 on chat:
+
+	#If the player's in edit mode
 	if {foxtrot::editmode::%player%} is set:
+		#Prevent their chat from going out
 		cancel event
+		
+		#Parse it as a number, unless it's plus or minus
 		if message isn't "+" or "-":
+			#Parse the message as a number
 			set {_} to message parsed as number
 			stop if {_} isn't set
 		
 		else:
+			#Increase or decrease if it's + or -
 			set {_} to {foxtrot::line::%player%} + 1 if message is "+"
 			set {_} to {foxtrot::line::%player%} - 1 if message is "-"
 		
+		#Jump to the line that we just decided
 		set {foxtrot::line::%player%} to {_}
+		
+		#Update the books to match
 		updateBooks()
 		send "Now editing line %{_}%"
 		
 
-		
+#When the user hits "Done" on Edit Mode book
 on book edit:
+	#If said book is actually a foxtrot book
 	if int tag "foxtrotBook" of nbt compound from player's tool is 1:
+		#If you're holding a book, and not in edit mode, something is messed up, so we check for it
 		if {foxtrot::editmode::%player%} is set:
+			#Stop the book from being edited, because we're going to edit it in just a second
 			cancel event
+			
+			#Get the first page
 			set {_} to page 1 of event-item
+			
+			#If the first page doesn't have any text, set it to nothing instead of the string "<none>"
 			if {_} isn't set:
 				set {_} to ""
 			
+			#Convert (tab) back to tabs
 			replace all "(tab)" with "	" in {_}
+			
+			#Get the linecount of the player's file
 			set {_lncnt} to line count of file "%{foxtrot::file::%player%}%"
 			
+			#Check if the line they're editing is higher than the line count
+			#The way SkUtilities works, only "write" can add lines,
+			#but it also breaks editing existing lines so we have to check this
 			if {foxtrot::line::%player%} <= {_lncnt}:
-				#This is the scary part. Actually editing a file.
+				#update the line in the actual file
 				set line {foxtrot::line::%player%} in file "%{foxtrot::file::%player%}%" to {_}
 			
+			#if the line is higher than the line count (e.g. not existant yet)
 			else:
+			
+				#add the line to the actual file
 				write {_} at line {foxtrot::line::%player%} to file "%{foxtrot::file::%player%}%"
 			
+			#*** will delete the line. Probably should change to something like <none>, 
+			#or maybe the "sign" button to delete lines, but we'll see.
 			if {_} is "***":
 				cleanFiles(player)
 			
+#Delete lines with ***
 function cleanFiles(pl: player):
+	#get the entire file at once
 	set {_a::*} to file contents of {foxtrot::file::%{_pl}%}
+		
+	#loop every line
 	loop {_a::*}:
+		#if the line is ***
 		if loop-value is "***":
+			#remove it from the list
 			remove loop-value from {_a::*}
 			
+	#set the file to that list, effectively removing all lines from the file
 	set file contents of {foxtrot::file::%{_pl}%} to {_a::*}
-		
