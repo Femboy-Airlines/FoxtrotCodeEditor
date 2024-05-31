@@ -63,7 +63,24 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			set string tag "foxtrotOwner" of {_custom} to player's uuid
 	
 			send "Made a new Foxtrot display."
+
+		#Update Foxtrot from Github
+		if arg-1 is "update":
+			send "Attempting to update <lime>Foxtrot" to player
+
+			#Delete the old file
+			delete file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
 			
+			#Wait some time for files to catch up
+			wait 1 second
+
+			#Grab the new one from GitHub
+			download file from "https://raw.githubusercontent.com/Com2486/Foxtrot-Code-Editor/main/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
+			
+			send "<lime>Foxtrot should have been updated!"
+			send "Please reload Foxtrot's skript file!"
+		
+
 		#Edit background color
 		if arg-1 is "color":
 			if arg-2 is "extra": #If someone didn't type anything after /foxtrot color
