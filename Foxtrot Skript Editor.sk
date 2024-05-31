@@ -72,7 +72,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			delete file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
 			
 			#Wait some time for files to catch up
-			wait 1 second
+			wait 5 second
 
 			#Grab the new one from GitHub
 			download file from "https://raw.githubusercontent.com/Com2486/Foxtrot-Code-Editor/main/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
