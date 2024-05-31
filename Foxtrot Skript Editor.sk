@@ -38,7 +38,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "Do <bold>/foxtrot create<reset> to make a window"
 			send "Do <bold>/foxtrot rotate<reset> to rotate your window"
 			send "Do <bold>/foxtrot color (ARGB hex code)<reset> to customise your window"
-			send "Do <bold>/foxtrot update (file)<reset> to start editing files"
+			send "Do <bold>/foxtrot edit (file)<reset> to start editing files"
 			send "Do <bold>/foxtrot kill<reset> to kill all windows"
 			send "Do <bold>/foxtrot how<reset> for more info"
 			
@@ -65,7 +65,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "Made a new Foxtrot display."
 
 		#Update Foxtrot from Github
-		if arg-1 is "update":
+		if arg-1 is "edit":
 			send "Attempting to update <lime>Foxtrot" to player
 
 			#Delete the old file
@@ -132,7 +132,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "Here's a Foxtrot book!"
 			
 		#Start editing a file
-		if arg-1 is "update":
+		if arg-1 is "edit":
 			#The foxtrot format is: CWD (current working directory), File (player's file pick), Suffix (file format)
 			set {_foxtrotformat} to "%{foxtrotSettings::global::cwd}%%arg-2%%{foxtrotSettings::global::suffix}%"
 			
@@ -172,7 +172,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			
 		#More explanation
 		if arg-1 is "how":
-			send "After you create a display with <bold><lime>/foxtrot create<reset>, and start editing a file with <bold><lime>/foxtrot update (file)<reset>", ""
+			send "After you create a display with <bold><lime>/foxtrot create<reset>, and start editing a file with <bold><lime>/foxtrot edit (file)<reset>", ""
 			send "You will then need a book <bold><lime>/foxtrot book<reset>, that when held, puts you into <lime>Edit Mode<reset>.", ""
 			send "<lime>Edit Mode<reset> allows you to edit any line of a file with the provided book-and-quill.", ""
 			send "But, you may notice that when you first enter <lime>Edit Mode<reset>, your book-and-quill doesn't show anything! How do you change the line?", ""
