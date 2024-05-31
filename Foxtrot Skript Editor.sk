@@ -65,7 +65,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "Made a new Foxtrot display."
 
 		#Update Foxtrot from Github
-		if arg-1 is "edit":
+		if arg-1 is "update":
 			send "Attempting to update <lime>Foxtrot" to player
 
 			#Delete the old file
