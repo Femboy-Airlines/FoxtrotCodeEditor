@@ -1,8 +1,0 @@
-command /ftupdate:
-	trigger:
-		send "Attempting to update <lime>Foxtrot" to player
-		delete file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
-		wait 1 second
-		download file from "https://raw.githubusercontent.com/Com2486/Foxtrot-Code-Editor/main/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
-		send "<lime>Foxtrot should have been updated!"
-		
