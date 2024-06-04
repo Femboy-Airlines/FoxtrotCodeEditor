@@ -22,9 +22,39 @@ on load:
 #-----------------------------------------------------------------------------------------------------------------------------------------
 #Everything below this point is the actual code for Foxtrot and should not be edited unless you are 100% sure you know what you are doing.
 #You should know at least basic Skript before changing anything here. YOU HAVE BEEN WARNED SUFFICIENTLY!
+#
+#Also, If you DO know what you're doing, feel free to commit on Github at 
+#https://github.com/Com2486/Foxtrot-Code-Editor/
+#
 #-----------------------------------------------------------------------------------------------------------------------------------------
 
 
+#Tab completions to make figuring out Foxtrot easier
+on tab complete of "/foxtrot" and "/f":
+	
+	#The first position will never change, so we just set from a direct list
+	set tab completions for position 1 to "help", "create", "update", "color", "book", "edit", "kill", "how", "faq", "rotate"
+	
+	#The only command that needs a second argument is 
+	if tab arg-1 is "edit":
+		set {_suf} to {foxtrotSettings::global::suffix}
+		set {_len} to length of {_suf}
+		
+		loop files in dir {foxtrotSettings::global::cwd}:
+			broadcast "Raw Loop-Value: %loop-value%", ""
+			set {_name} to name of file loop-value
+			set {_abs} to absolute path of loop-value
+			set {_fsuf} to last {_len} characters of {_abs}
+			
+			broadcast "Variables:", {_name}, {_abs}, {_fsuf}, ""
+			if {_fsuf} is {_suf}:
+				broadcast "Matches! Adding %{_name}% to tabcompletions"
+				add {_name} to tab completions for position 2
+				
+			else:
+				broadcast "%{_fsuf}% (file suffix), Does not match %{_suf}%, (global suffix)"
+			
+	
 
 #Main Foxtrot Command
 command /foxtrot <string = "help"> [<string = "extra">]:
@@ -151,7 +181,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			set {foxtrot::file::%player%} to {_foxtrotformat}
 			send "Now editing <bold><lime>%arg-2%%{foxtrotSettings::global::suffix}%<reset>!"
 				
-		
+		#kill all foxtrot displays that the player owns
 		if arg-1 is "kill":
 			#Loop all text displays
 			loop all text displays:
