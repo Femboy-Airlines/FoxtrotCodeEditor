@@ -18,7 +18,10 @@ on load:
 	#Name for the Foxtrot Book
 	set {foxtrotSettings::global::editmodeName} to "<reset><lime>Foxtrot Edit Mode"
 
-
+	#A boolean that permits or disallows file creation and deletion!
+	#Default false
+	set {foxtrotSettings::global::fileEditing} to false
+	
 #-----------------------------------------------------------------------------------------------------------------------------------------
 #Everything below this point is the actual code for Foxtrot and should not be edited unless you are 100% sure you know what you are doing.
 #You should know at least basic Skript before changing anything here. YOU HAVE BEEN WARNED SUFFICIENTLY!
@@ -28,36 +31,80 @@ on load:
 #
 #-----------------------------------------------------------------------------------------------------------------------------------------
 
+function convertToFoxtrotFormat(inputs: string, fullPath: boolean = false) :: string:
+	return "%{_inputs}%%{foxtrotSettings::global::suffix}%" if {_fullPath} is false
+	return "%{foxtrotSettings::global::cwd}%%{_inputs}%%{foxtrotSettings::global::suffix}%" if {_fullPath} is true
+
+function getValidFiles() :: strings:
+
+
+	#Shorten the global suffix to {_suf}
+	set {_suf} to {foxtrotSettings::global::suffix}
+	
+	#Clear the suffix if it isn't set to fix an edgecase scenario
+	clear {_suf} if {_suf} is ""
+	
+	
+	#Get the length of the global suffix
+	set {_len} to length of {_suf}
+
+	
+	#Loop every file in the CWD
+	loop files in dir {foxtrotSettings::global::cwd}:
+	
+		#Get the name of said file
+		set {_name} to name of file loop-value
+		
+		#Get the absolute path, including suffix (e.g. C:/servers/server1/plugins/skript/scripts/file.sk")
+		set {_abs} to absolute path of loop-value
+		
+		#Get the last x characters of the path, where x is the length of the global suffix
+		set {_fsuf} to last {_len} characters of {_abs}		
+
+		set {_edgecasecheck} to true if {_suf} isn't set
+
+		#If the file's suffix is the global suffix
+		if {_fsuf} is {_suf}:		
+			
+
+			#Add that file to valid tab completions
+			add {_name} to {_return::*}
+		
+		else:
+			add {_name} to {_return::*} if {_edgecasecheck} is set
+				
+			
+			
+	#return null if nothing is in the return list, else return the return list.
+	return "null" if length of {_return::*} is 0
+	return "null" if length of {_return::*} isn't set
+
+	return {_return::*}
+	
+	
+
+		
 
 #Tab completions to make figuring out Foxtrot easier
 on tab complete of "/foxtrot" and "/f":
 	
 	#The first position will never change, so we just set from a direct list
-	set tab completions for position 1 to "help", "create", "update", "color", "book", "edit", "kill", "how", "faq", "rotate"
+	set tab completions for position 1 to "reload", "file", "help", "create", "update", "color", "book", "edit", "kill", "how", "rotate"
 	
-	#The only command that needs a second argument is 
+	#The only command that needs a second argument is this one, and 'file'
 	if tab arg-1 is "edit":
-		set {_suf} to {foxtrotSettings::global::suffix}
-		set {_len} to length of {_suf}
-		
-		loop files in dir {foxtrotSettings::global::cwd}:
-			broadcast "Raw Loop-Value: %loop-value%", ""
-			set {_name} to name of file loop-value
-			set {_abs} to absolute path of loop-value
-			set {_fsuf} to last {_len} characters of {_abs}
-			
-			broadcast "Variables:", {_name}, {_abs}, {_fsuf}, ""
-			if {_fsuf} is {_suf}:
-				broadcast "Matches! Adding %{_name}% to tabcompletions"
-				add {_name} to tab completions for position 2
-				
-			else:
-				broadcast "%{_fsuf}% (file suffix), Does not match %{_suf}%, (global suffix)"
-			
+		#Get all valid files and add them to the list
+		add getValidFiles() to tab completions for position 2
+
+	#File commands
+	if tab arg-1 is "file":
+		set tab completions for position 2 to "create", "delete", "rename"
+		if tab arg-2 is "delete" or "rename":
+			add getValidFiles() to tab completions for position 3
 	
 
 #Main Foxtrot Command
-command /foxtrot <string = "help"> [<string = "extra">]:
+command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<string = "extra">]:
 	aliases: /f #Allows /f for Foxtrot
 	permission: ops #Only ops, you can change this if you want a custom permission like foxtrot.usage
 	permission message: <light red>Sorry! You don't have enough permission to use Foxtrot. #Message if you do not meet the above permissions
@@ -67,10 +114,73 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "Welcome to <lime>Foxtrot In-game Editor!<reset>"
 			send "Do <bold>/foxtrot create<reset> to make a window"
 			send "Do <bold>/foxtrot rotate<reset> to rotate your window"
-			send "Do <bold>/foxtrot color (ARGB hex code)<reset> to customise your window"
+			send "Do <bold>/foxtrot color (ARGB hex code)<reset> to customize your window"
 			send "Do <bold>/foxtrot edit (file)<reset> to start editing files"
 			send "Do <bold>/foxtrot kill<reset> to kill all windows"
 			send "Do <bold>/foxtrot how<reset> for more info"
+		
+		if arg-1 is "reload":
+			send "Attempting to reload Foxtrot"
+			reload script "Foxtrot Skript Editor.sk"
+			send "Foxtrot is reloaded"
+		
+		#File commands
+		if arg-1 is "file":
+			if {foxtrotSettings::global::fileEditing} is true:
+				if arg-2 is "rename":
+					if arg-3 or arg-4 isn't set:
+						send "Format incorrect."
+						send "/foxtrot rename (source file) (new name)"
+						stop
+					set {_source} to convertToFoxtrotFormat(arg-3, true)
+					set {_new} to convertToFoxtrotFormat(arg-4, true)
+					if file {_source} exists:
+						if file {_new} doesn't exist:
+							rename file "%{_source}%" to "%convertToFoxtrotFormat(arg-4)%"
+							send "Successfully renamed! %{_source}%, %{_new}%"
+						else:
+							send "You can't rename a file to one that already exists!"
+							send "Delete the first one, and then rename it"
+					
+					else:
+						send "File '%arg-3%' does not exist."
+					
+				if arg-2 is "delete":
+					set {_target} to convertToFoxtrotFormat(arg-3, true)
+					if file {_target} exists:
+						delete file {_target}
+						send "Successfully deleted file %arg-3%"
+					else:
+						send "You cannot delete a file that doesn't exist"
+					
+				if arg-2 is "create":
+					set {_target} to convertToFoxtrotFormat(arg-3, true)
+					if file {_target} doesn't exist:
+						create file "%{_target}%"
+						send "Made file %arg-3%"
+					else:
+						send "You can't create a file that already exists."
+						
+			else:
+				send "File tampering is off in Foxtrot's settings."
+				send "Please ask an administrator to turn it on."
+				send "If you are the admin, look for the config at the top of Foxtrot's file."
+		
+		
+		#Emergency command for Foxtrot editing files over 50 megs in size
+		if arg-1 is "emergency":
+		
+			#Clear all player settings
+			clear {foxtrot::*}
+			
+			#Kill all foxtrot displays
+			loop all text displays:
+			
+				#If it's a Foxtrot display
+				if int tag "custom;foxtrot" of {_nbt} is 1:
+					
+					#Delete it instantly
+					kill loop-entity
 			
 
 		#Create a foxtrot display
@@ -108,7 +218,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			download file from "https://raw.githubusercontent.com/Com2486/Foxtrot-Code-Editor/main/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
 			
 			send "<lime>Foxtrot should have been updated!"
-			send "Please reload Foxtrot's skript file!"
+			send "Please reload Foxtrot's Skript file!"
 		
 
 		#Edit background color
@@ -164,7 +274,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 		#Start editing a file
 		if arg-1 is "edit":
 			#The foxtrot format is: CWD (current working directory), File (player's file pick), Suffix (file format)
-			set {_foxtrotformat} to "%{foxtrotSettings::global::cwd}%%arg-2%%{foxtrotSettings::global::suffix}%"
+			set {_foxtrotformat} to convertToFoxtrotFormat(arg-2, true)
 			
 			#Prevent people escaping the confines of the CWD
 			#Before this fix, people could do '../' to go back a directory, or
@@ -179,7 +289,7 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 				
 			#If it does exist, set the player's file to it
 			set {foxtrot::file::%player%} to {_foxtrotformat}
-			send "Now editing <bold><lime>%arg-2%%{foxtrotSettings::global::suffix}%<reset>!"
+			send "Now editing <bold><lime>%arg-2%<reset>!"
 				
 		#kill all foxtrot displays that the player owns
 		if arg-1 is "kill":
@@ -210,23 +320,6 @@ command /foxtrot <string = "help"> [<string = "extra">]:
 			send "After you're done editing a line, hit 'Done' to commit your change to the file.", ""
 			send "Watch out! <bold>You can re-edit a file, but you cannot undo a change!<reset>", ""
 			send "If you have any more questions, they should be answered by <bold><lime>/foxtrot faq"
-			
-		#*MORE* explanation
-		if arg-1 is "faq":
-			send "Q: Why doesn't changing my book do anything?"
-			send "A: Type a line number in chat while you're in edit mode!", ""
-			
-			send "Q: My book doesn't instantly update"
-			send "A: Your book only updates as fast as the screen does.", ""
-			
-			send "Q: How do I add tabs if Minecraft Books don't allow it?"
-			send "A: Although you can't add tabs with the TAB key, you can type <bold>(tab)<reset>, and Foxtrot will replace it.", ""
-			
-			send "Q: Will Foxtrot ever be on Github, or allow recommendated changes?"
-			send "A: https://github.com/Com2486/Foxtrot-Code-Editor/", ""
-			
-			send "Q: Foxtrot Discord Server?"
-			send "A: Foxtrot won't have it's own server, but Foxtrot is being managed by Femboy Airlines team! Check out femboyairlines.com for a Discord server.", ""
 		
 		#Rotate display.
 		#Ideally, this command should be entirely removed. I'd love a system that always points towards the player.
@@ -376,12 +469,17 @@ function updateBooks():
 		
 		#If the looped player is in Edit Mode
 		if {foxtrot::editmode::%loop-player%} is set:
-		
+			
+			#To prevent console-spam, clear this variable if the file stops existing
+			clear {foxtrot::file::%loop-player%} if file {foxtrot::file::%loop-player%} doesn't exist
+			
 			#Ignore this player if they haven't started editing a line
 			continue if {foxtrot::line::%loop-player%} isn't set
 			
 			#Ignore this player if they're holding a book, but haven't started editing any files
 			continue if {foxtrot::file::%loop-player%} isn't set
+			
+		
 			
 			#Get the line from the file
 			set {_line} to line {foxtrot::line::%loop-player%} in file {foxtrot::file::%loop-player%}
