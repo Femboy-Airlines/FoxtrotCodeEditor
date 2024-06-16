@@ -15,15 +15,24 @@ on load:
 	#Default ".sk"
 	set {foxtrotSettings::global::suffix} to ".sk"
 	
+	
+	#This will replace <> with unicode copies in your book to prevent color issues.
+	#This will also remove all of unicode characters ⟨ and ⟩ and replace them with < and >.
+	#It is recommended to use this if you are editing Skript code with this.
+	#Default true
+	set {foxtrotSettings::global::colorReplace} to true
+	
+	
 	#Name for the Foxtrot Book
+	#Default "<reset><lime>Foxtrot Edit Mode"
 	set {foxtrotSettings::global::editmodeName} to "<reset><lime>Foxtrot Edit Mode"
 
-	#A boolean that permits or disallows file creation and deletion!
+	#A boolean that permits or disallows file creation, renaming, and deletion!
 	#Default false
 	set {foxtrotSettings::global::fileEditing} to false
 	
 	#A boolean that allows exploration outside of the CWD.
-	#*THIS IS DANGEROUS. IF SOMEONE TELLS YOU TO TURN THIS OFF,
+	#THIS IS DANGEROUS. IF SOMEONE TELLS YOU TO TURN THIS ON,
 	#THEY ARE MOST LIKELY TRYING TO EDIT, DELETE, OR WORSE, WITH YOUR PERSONAL FILES
 	#Make sure you REALLY trust your admins before turning on this setting!
 	#Default false
@@ -87,9 +96,7 @@ function getValidFiles() :: strings:
 
 	return {_return::*}
 	
-#TODO: this
-# function checkColors(str: string) :: string:
-	# set {_str}
+
 		
 
 #Tab completions to make figuring out Foxtrot easier
@@ -137,11 +144,11 @@ command /foxtrot <strings = "help">:
 			send "Do <bold>/foxtrot how<reset> for more info"
 		
 		
-		#TODO: Work on this later. Buggy mess.
-		# if {_a::1} is "reload":
-			# send "Attempting to reload Foxtrot"
-			# reload script "Foxtrot Skript Editor.sk"
-			# send "Foxtrot is reloaded"
+		#Buggy reload command. Works fine for now.
+		if {_a::1} is "reload":
+			send "Attempting to reload Foxtrot"
+			reload script "Foxtrot Skript Editor.sk"
+			send "Foxtrot is reloaded"
 		
 		#File commands
 		if {_a::1} is "file":
@@ -226,16 +233,29 @@ command /foxtrot <strings = "help">:
 
 		#Update Foxtrot from Github
 		if {_a::1} is "update":
-			send "Attempting to update <lime>Foxtrot" to player
+			
+			if {_a::2} is set:
+				if {_a::2} isn't "dev":
+					send "Only branches are 'dev' and 'main'. (Main is accessed by omitting the second argument)" to player
+					stop
+			
+			send "Attempting to update <lime>Foxtrot from Developer branch" to player if {_a::2} is "dev"
+			send "Attempting to update <lime>Foxtrot from Main branch" to player if {_a::2} isn't set
 
 			#Delete the old file
 			delete file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
 			
 			#Wait some time for files to catch up
-			wait 5 second
-
-			#Grab the new one from GitHub
-			download file from "https://raw.githubusercontent.com/Com2486/Foxtrot-Code-Editor/main/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
+			wait 2.5 second
+			
+			#Check if we're grabbing the live, or the dev.
+			if {_a::2} isn't "dev":
+				#Grab the new one from GitHub
+				download file from "https://raw.githubusercontent.com/Femboy-Airlines/FoxtrotCodeEditor/main/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
+			
+			else:
+				download file from "https://raw.githubusercontent.com/Femboy-Airlines/FoxtrotCodeEditor/dev/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
+				
 			
 			send "<lime>Foxtrot should have been updated!"
 			send "Please reload Foxtrot's Skript file!"
@@ -344,9 +364,12 @@ command /foxtrot <strings = "help">:
 			send "Watch out! <bold>You can re-edit a file, but you cannot undo a change!<reset>", ""
 			send "If you have any more questions, they should be answered by <bold><lime>/foxtrot faq"
 		
-		#Rotate display.
-		#Ideally, this command should be entirely removed. I'd love a system that always points towards the player.
+		#Rotate display based on player input
 		if {_a::1} is "rotate":
+			if {_a::2} isn't set:
+				send "Specify a rotation in degrees, such as /foxtrot rotate 180" to player
+				stop
+				
 			#Get the NBT data of the nearest text display
 			set {_nbt} to nbt compound from nearest text display
 			
@@ -354,10 +377,18 @@ command /foxtrot <strings = "help">:
 			stop if int tag "custom;foxtrot" of {_nbt} isn't set
 			stop if string tag "custom;foxtrotOwner" of {_nbt} isn't player's uuid
 			
-			#Change the rotation manually by literally changing the raw rotation by 90.
-			#TODO: Icky mucky code. Replace soon plz!
+			
+			#Quick lookup for cardinal directions.
+			set {_a::2} to "0" if {_a::2} is "south"
+			set {_a::2} to "90" if {_a::2} is "west"
+			set {_a::2} to "180" if {_a::2} is "north"
+			set {_a::2} to "270" if {_a::2} is "east"
+				
+			
+			
+			#Change the rotation to a specified number
 			set {_list::*} to float list tag "Rotation" of {_nbt}
-			set {_list::1} to {_list::1} + 90
+			set {_list::1} to {_a::2} parsed as number
 			
 			#Apply change to the NBT
 			add nbt compound from "{Rotation:[%{_list::1}%f, 0.0f]}" to {_nbt}	
@@ -502,16 +533,19 @@ function updateBooks():
 			#Ignore this player if they're holding a book, but haven't started editing any files
 			continue if {foxtrot::file::%loop-player%} isn't set
 			
-		
-			
 			#Get the line from the file
 			set {_line} to line {foxtrot::line::%loop-player%} in file {foxtrot::file::%loop-player%}
 			
 			#Replace tabs with (tab) because Minecraft formatting is weird
 			replace all "	" with "(tab)" in {_line}
 			
+			#Replace <> with unicode copies because Skript formatting is weird
+			if {foxtrotSettings::global::colorReplace} is true:
+				replace all "<" with "⟨" in {_line}
+				replace all ">" with "⟩" in {_line}
+			
 			#Update page 1 of the book with that line
-			set page 1 of loop-player's tool to unformatted "%{_line}%"			
+			set page 1 of loop-player's tool to raw "%{_line}%"			
 
 #Chat handler
 on chat:
@@ -557,9 +591,13 @@ on book edit:
 			if {_} isn't set:
 				set {_} to ""
 			
-			#Check Colors
-			set {_} to checkColors({_})
-			
+			#Formatting is a nightmare... 😵‍💫
+			#This converts the weird unicode character workarounds back to <> brackets.
+			if {foxtrotSettings::global::colorReplace} is true:
+				replace all "⟨" with "<" in {_}
+				replace all "⟩" with ">" in {_}
+				
+				
 			#Convert (tab) back to tabs
 			replace all "(tab)" with "	" in {_}
 			
