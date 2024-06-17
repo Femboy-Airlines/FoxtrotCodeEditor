@@ -15,12 +15,28 @@ on load:
 	#Default ".sk"
 	set {foxtrotSettings::global::suffix} to ".sk"
 	
+	
+	#This will replace <> with unicode copies in your book to prevent color issues.
+	#This will also remove all of unicode characters ⟨ and ⟩ and replace them with < and >.
+	#It is recommended to use this if you are editing Skript code with this.
+	#Default true
+	set {foxtrotSettings::global::colorReplace} to true
+	
+	
 	#Name for the Foxtrot Book
+	#Default "<reset><lime>Foxtrot Edit Mode"
 	set {foxtrotSettings::global::editmodeName} to "<reset><lime>Foxtrot Edit Mode"
 
-	#A boolean that permits or disallows file creation and deletion!
+	#A boolean that permits or disallows file creation, renaming, and deletion!
 	#Default false
 	set {foxtrotSettings::global::fileEditing} to false
+	
+	#A boolean that allows exploration outside of the CWD.
+	#THIS IS DANGEROUS. IF SOMEONE TELLS YOU TO TURN THIS ON,
+	#THEY ARE MOST LIKELY TRYING TO EDIT, DELETE, OR WORSE, WITH YOUR PERSONAL FILES
+	#Make sure you REALLY trust your admins before turning on this setting!
+	#Default false
+	set {foxtrotSettings::global::canexplore} to false
 	
 #-----------------------------------------------------------------------------------------------------------------------------------------
 #Everything below this point is the actual code for Foxtrot and should not be edited unless you are 100% sure you know what you are doing.
@@ -36,7 +52,6 @@ function convertToFoxtrotFormat(inputs: string, fullPath: boolean = false) :: st
 	return "%{foxtrotSettings::global::cwd}%%{_inputs}%%{foxtrotSettings::global::suffix}%" if {_fullPath} is true
 
 function getValidFiles() :: strings:
-
 
 	#Shorten the global suffix to {_suf}
 	set {_suf} to {foxtrotSettings::global::suffix}
@@ -81,7 +96,6 @@ function getValidFiles() :: strings:
 
 	return {_return::*}
 	
-	
 
 		
 
@@ -91,26 +105,36 @@ on tab complete of "/foxtrot" and "/f":
 	#The first position will never change, so we just set from a direct list
 	set tab completions for position 1 to "reload", "file", "help", "create", "update", "color", "book", "edit", "kill", "how", "rotate"
 	
-	#The only command that needs a second argument is this one, and 'file'
+	#Rotation command
+	if tab arg-1 is "rotate":
+		set tab completions for position 2 to "north", "south", "east", "west"
+	
+	#Editing files
 	if tab arg-1 is "edit":
 		#Get all valid files and add them to the list
 		add getValidFiles() to tab completions for position 2
 
-	#File commands
+	#File tampering commands
 	if tab arg-1 is "file":
+		#Add tab completion for the possible positions (create, delete, rename)
 		set tab completions for position 2 to "create", "delete", "rename"
+		#If it's delete or rename
 		if tab arg-2 is "delete" or "rename":
+			#get valid files in foxtrot's cwd and add it to tab completions
 			add getValidFiles() to tab completions for position 3
-	
+
 
 #Main Foxtrot Command
-command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<string = "extra">]:
+command /foxtrot <strings = "help">:
 	aliases: /f #Allows /f for Foxtrot
 	permission: ops #Only ops, you can change this if you want a custom permission like foxtrot.usage
 	permission message: <light red>Sorry! You don't have enough permission to use Foxtrot. #Message if you do not meet the above permissions
 	trigger:
+		
+		set {_a::*} to split "%arg-1%" using " "
+	
 		#Help for newcomers
-		if arg-1 is "help":
+		if {_a::1} is "help":
 			send "Welcome to <lime>Foxtrot In-game Editor!<reset>"
 			send "Do <bold>/foxtrot create<reset> to make a window"
 			send "Do <bold>/foxtrot rotate<reset> to rotate your window"
@@ -119,45 +143,47 @@ command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<s
 			send "Do <bold>/foxtrot kill<reset> to kill all windows"
 			send "Do <bold>/foxtrot how<reset> for more info"
 		
-		if arg-1 is "reload":
+		
+		#Buggy reload command. Works fine for now.
+		if {_a::1} is "reload":
 			send "Attempting to reload Foxtrot"
 			reload script "Foxtrot Skript Editor.sk"
 			send "Foxtrot is reloaded"
 		
 		#File commands
-		if arg-1 is "file":
+		if {_a::1} is "file":
 			if {foxtrotSettings::global::fileEditing} is true:
-				if arg-2 is "rename":
-					if arg-3 or arg-4 isn't set:
+				if {_a::2} is "rename":
+					if {_a::3} or {_a::4} isn't set:
 						send "Format incorrect."
 						send "/foxtrot rename (source file) (new name)"
 						stop
-					set {_source} to convertToFoxtrotFormat(arg-3, true)
-					set {_new} to convertToFoxtrotFormat(arg-4, true)
+					set {_source} to convertToFoxtrotFormat({_a::3}, true)
+					set {_new} to convertToFoxtrotFormat({_a::4}, true)
 					if file {_source} exists:
 						if file {_new} doesn't exist:
-							rename file "%{_source}%" to "%convertToFoxtrotFormat(arg-4)%"
+							rename file "%{_source}%" to "%convertToFoxtrotFormat({_a::4})%"
 							send "Successfully renamed! %{_source}%, %{_new}%"
 						else:
 							send "You can't rename a file to one that already exists!"
 							send "Delete the first one, and then rename it"
 					
 					else:
-						send "File '%arg-3%' does not exist."
+						send "File '%{_a::3}%' does not exist."
 					
-				if arg-2 is "delete":
-					set {_target} to convertToFoxtrotFormat(arg-3, true)
+				if {_a::2} is "delete":
+					set {_target} to convertToFoxtrotFormat({_a::3}, true)
 					if file {_target} exists:
 						delete file {_target}
-						send "Successfully deleted file %arg-3%"
+						send "Successfully deleted file %{_a::3}%"
 					else:
 						send "You cannot delete a file that doesn't exist"
 					
-				if arg-2 is "create":
-					set {_target} to convertToFoxtrotFormat(arg-3, true)
+				if {_a::2} is "create":
+					set {_target} to convertToFoxtrotFormat({_a::3}, true)
 					if file {_target} doesn't exist:
 						create file "%{_target}%"
-						send "Made file %arg-3%"
+						send "Made file %{_a::3}%"
 					else:
 						send "You can't create a file that already exists."
 						
@@ -168,23 +194,24 @@ command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<s
 		
 		
 		#Emergency command for Foxtrot editing files over 50 megs in size
-		if arg-1 is "emergency":
-		
+		if {_a::1} is "emergency":
 			#Clear all player settings
 			clear {foxtrot::*}
+
 			
 			#Kill all foxtrot displays
 			loop all text displays:
-			
+				set {_nbt} to nbt compound from loop-entity
+
 				#If it's a Foxtrot display
 				if int tag "custom;foxtrot" of {_nbt} is 1:
-					
+
 					#Delete it instantly
 					kill loop-entity
 			
 
 		#Create a foxtrot display
-		if arg-1 is "create":
+		if {_a::1} is "create":
 			#Spawn a text display
 			spawn a text display at the player
 			
@@ -205,31 +232,44 @@ command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<s
 			send "Made a new Foxtrot display."
 
 		#Update Foxtrot from Github
-		if arg-1 is "update":
-			send "Attempting to update <lime>Foxtrot" to player
+		if {_a::1} is "update":
+			
+			if {_a::2} is set:
+				if {_a::2} isn't "dev":
+					send "Only branches are 'dev' and 'main'. (Main is accessed by omitting the second argument)" to player
+					stop
+			
+			send "Attempting to update <lime>Foxtrot from Developer branch" to player if {_a::2} is "dev"
+			send "Attempting to update <lime>Foxtrot from Main branch" to player if {_a::2} isn't set
 
 			#Delete the old file
 			delete file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
 			
 			#Wait some time for files to catch up
-			wait 5 second
-
-			#Grab the new one from GitHub
-			download file from "https://raw.githubusercontent.com/Com2486/Foxtrot-Code-Editor/main/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
+			wait 2.5 second
+			
+			#Check if we're grabbing the live, or the dev.
+			if {_a::2} isn't "dev":
+				#Grab the new one from GitHub
+				download file from "https://raw.githubusercontent.com/Femboy-Airlines/FoxtrotCodeEditor/main/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
+			
+			else:
+				download file from "https://raw.githubusercontent.com/Femboy-Airlines/FoxtrotCodeEditor/dev/Foxtrot%%20Skript%%20Editor.sk" to file "plugins\\Skript\\scripts\\Foxtrot Skript Editor.sk"
+				
 			
 			send "<lime>Foxtrot should have been updated!"
 			send "Please reload Foxtrot's Skript file!"
 		
 
 		#Edit background color
-		if arg-1 is "color":
-			if arg-2 is "extra": #If someone didn't type anything after /foxtrot color
+		if {_a::1} is "color":
+			if {_a::2} is "extra": #If someone didn't type anything after /foxtrot color
 				#Reset it back to default color.
 				set {foxtrot::color::%player%} to -14077644 
 				send "Reset Foxtrot's color."
 			
 			else:
-				set {_hex} to arg-2
+				set {_hex} to {_a::2}
 				
 				#Remove hashtags and '0x', common things in copy-pasted hex colors
 				replace all "##" with "" in {_hex}
@@ -257,7 +297,7 @@ command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<s
 				send "Set your Foxtrot color!"
 			
 		#Give players a Foxtrot book
-		if arg-1 is "book":
+		if {_a::1} is "book":
 			#Create a normal book with the name set in the settings
 			set {_book} to book and quill named {foxtrotSettings::global::editmodeName}
 			
@@ -272,15 +312,18 @@ command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<s
 			send "Here's a Foxtrot book!"
 			
 		#Start editing a file
-		if arg-1 is "edit":
+		if {_a::1} is "edit":
 			#The foxtrot format is: CWD (current working directory), File (player's file pick), Suffix (file format)
-			set {_foxtrotformat} to convertToFoxtrotFormat(arg-2, true)
+			set {_foxtrotformat} to convertToFoxtrotFormat({_a::2}, true)
 			
 			#Prevent people escaping the confines of the CWD
-			#Before this fix, people could do '../' to go back a directory, or
+			#Without this setting, people could do '../' to go back a directory, or
 			# 'C:/[...]' to explore drives. Very bad!
-			replace all ".." with "" in {_foxtrotformat}
-			replace all ":" with "" in {_foxtrotformat}
+			#This setting should never be turned off unless you truly deeply trust
+			#the people using Foxtrot on your server.
+			if {foxtrotSettings::global::canexplore} is false:
+				replace all ".." with "" in {_foxtrotformat}
+				replace all ":" with "" in {_foxtrotformat}
 			
 			#If the file doesn't exist, stop running
 			if file {_foxtrotformat} doesn't exist:
@@ -289,10 +332,10 @@ command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<s
 				
 			#If it does exist, set the player's file to it
 			set {foxtrot::file::%player%} to {_foxtrotformat}
-			send "Now editing <bold><lime>%arg-2%<reset>!"
+			send "Now editing <bold><lime>%{_a::2}%<reset>!"
 				
 		#kill all foxtrot displays that the player owns
-		if arg-1 is "kill":
+		if {_a::1} is "kill":
 			#Loop all text displays
 			loop all text displays:
 				#get the NBT data of the text display
@@ -311,7 +354,7 @@ command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<s
 			send action bar "" to player
 			
 		#More explanation
-		if arg-1 is "how":
+		if {_a::1} is "how":
 			send "After you create a display with <bold><lime>/foxtrot create<reset>, and start editing a file with <bold><lime>/foxtrot edit (file)<reset>", ""
 			send "You will then need a book <bold><lime>/foxtrot book<reset>, that when held, puts you into <lime>Edit Mode<reset>.", ""
 			send "<lime>Edit Mode<reset> allows you to edit any line of a file with the provided book-and-quill.", ""
@@ -321,9 +364,12 @@ command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<s
 			send "Watch out! <bold>You can re-edit a file, but you cannot undo a change!<reset>", ""
 			send "If you have any more questions, they should be answered by <bold><lime>/foxtrot faq"
 		
-		#Rotate display.
-		#Ideally, this command should be entirely removed. I'd love a system that always points towards the player.
-		if arg-1 is "rotate":
+		#Rotate display based on player input
+		if {_a::1} is "rotate":
+			if {_a::2} isn't set:
+				send "Specify a rotation in degrees, such as /foxtrot rotate 180" to player
+				stop
+				
 			#Get the NBT data of the nearest text display
 			set {_nbt} to nbt compound from nearest text display
 			
@@ -331,10 +377,18 @@ command /foxtrot <string = "help"> [<string = "extra">] [<string = "extra">] [<s
 			stop if int tag "custom;foxtrot" of {_nbt} isn't set
 			stop if string tag "custom;foxtrotOwner" of {_nbt} isn't player's uuid
 			
-			#Change the rotation manually by literally changing the raw rotation by 90.
-			#Icky musty code. Replace soon plz!
+			
+			#Quick lookup for cardinal directions.
+			set {_a::2} to "0" if {_a::2} is "south"
+			set {_a::2} to "90" if {_a::2} is "west"
+			set {_a::2} to "180" if {_a::2} is "north"
+			set {_a::2} to "270" if {_a::2} is "east"
+				
+			
+			
+			#Change the rotation to a specified number
 			set {_list::*} to float list tag "Rotation" of {_nbt}
-			set {_list::1} to {_list::1} + 90
+			set {_list::1} to {_a::2} parsed as number
 			
 			#Apply change to the NBT
 			add nbt compound from "{Rotation:[%{_list::1}%f, 0.0f]}" to {_nbt}	
@@ -479,16 +533,19 @@ function updateBooks():
 			#Ignore this player if they're holding a book, but haven't started editing any files
 			continue if {foxtrot::file::%loop-player%} isn't set
 			
-		
-			
 			#Get the line from the file
 			set {_line} to line {foxtrot::line::%loop-player%} in file {foxtrot::file::%loop-player%}
 			
 			#Replace tabs with (tab) because Minecraft formatting is weird
 			replace all "	" with "(tab)" in {_line}
 			
+			#Replace <> with unicode copies because Skript formatting is weird
+			if {foxtrotSettings::global::colorReplace} is true:
+				replace all "<" with "⟨" in {_line}
+				replace all ">" with "⟩" in {_line}
+			
 			#Update page 1 of the book with that line
-			set page 1 of loop-player's tool to unformatted "%{_line}%"			
+			set page 1 of loop-player's tool to raw "%{_line}%"			
 
 #Chat handler
 on chat:
@@ -517,6 +574,7 @@ on chat:
 		send "Now editing line %{_}%"
 		
 
+			
 #When the user hits "Done" on Edit Mode book
 on book edit:
 	#If said book is actually a foxtrot book
@@ -533,6 +591,13 @@ on book edit:
 			if {_} isn't set:
 				set {_} to ""
 			
+			#Formatting is a nightmare... 😵‍💫
+			#This converts the weird unicode character workarounds back to <> brackets.
+			if {foxtrotSettings::global::colorReplace} is true:
+				replace all "⟨" with "<" in {_}
+				replace all "⟩" with ">" in {_}
+				
+				
 			#Convert (tab) back to tabs
 			replace all "(tab)" with "	" in {_}
 			
